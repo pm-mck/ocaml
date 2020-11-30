@@ -3363,7 +3363,7 @@ and type_expect_
           raise(Error(loc, env, Instance_variable_not_mutable lab.txt))
     end
   | Pexp_override lst ->
-      let _ =
+      let () = ignore (
        List.fold_right
         (fun (lab, _) l ->
            if List.exists (fun l -> l.txt = lab.txt) l then
@@ -3371,7 +3371,7 @@ and type_expect_
                          Value_multiply_overridden lab.txt));
            lab::l)
         lst
-        [] in
+        []) in
       begin match
         try
           Env.find_value_by_name (Longident.Lident "selfpat-*") env,
@@ -5068,6 +5068,24 @@ and type_let
          | Tpat_alias ({pat_desc=Tpat_any}, _, _) -> ()
          | _ -> raise(Error(pat.pat_loc, env, Illegal_letrec_pat)))
       l;
+  List.iter (function
+      | {vb_pat = {pat_desc = Tpat_any; pat_extra; pat_loc; pat_type; _}; _} ->
+        if not (List.exists (function (Tpat_constraint _, _, _) -> true | _ -> false) 
+                pat_extra)
+        then begin
+          let rec safe_desc = fun v -> function
+          | {desc=Tlink t} when not (List.memq t v) -> safe_desc (t :: v) t
+          | t -> t
+          in
+          let ty = match safe_desc [] pat_type with
+          | {desc=Tconstr(p, _, _)} when p = Predef.path_unit  -> None
+          | _ ->
+            Printtyp.type_expr Format.str_formatter pat_type;
+            Some (Format.flush_str_formatter ())
+          in
+            Location.prerr_warning pat_loc (Warnings.Discarded_binding ty)
+        end
+      | _ -> ()) l;
   List.iter (function
       | {vb_pat = {pat_desc = Tpat_any; pat_extra; _}; vb_expr; _} ->
           if not (List.exists (function (Tpat_constraint _, _, _) -> true

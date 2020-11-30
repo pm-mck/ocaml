@@ -93,6 +93,7 @@ type t =
   | Unused_open_bang of string              (* 66 *)
   | Unused_functor_parameter of string      (* 67 *)
   | Match_on_mutable_state_prevent_uncurry  (* 68 *)
+  | Discarded_binding of string option      (* 69 *)
 ;;
 
 (* If you remove a warning, leave a hole in the numbering.  NEVER change
@@ -171,9 +172,10 @@ let number = function
   | Unused_open_bang _ -> 66
   | Unused_functor_parameter _ -> 67
   | Match_on_mutable_state_prevent_uncurry -> 68
+  | Discarded_binding _ -> 69
 ;;
 
-let last_warning_number = 68
+let last_warning_number = 69
 ;;
 
 (* Third component of each tuple is the list of names for each warning. The
@@ -332,6 +334,8 @@ let descriptions =
     68, "Pattern-matching depending on mutable state prevents the remaining \
          arguments from being uncurried.",
     ["match-on-mutable-state-prevent-uncurry"];
+    69, "Discarded binding.",
+    ["discarded-binding"];
   ]
 ;;
 
@@ -815,6 +819,12 @@ let message = function
     "This pattern depends on mutable state.\n\
      It prevents the remaining arguments from being uncurried, which will \
      cause additional closure allocations."
+  | Discarded_binding (Some ty) ->
+    "A binding of type '" ^ ty ^ "' was discarded without its type being \
+     declared. Either 'ignore' the result or declare the type of the \
+     discarded binding '(_:" ^ ty ^ ")'"
+  | Discarded_binding None ->
+    "A unit binding was discarded.\nHint: replace '_' with '()'"
 ;;
 
 let nerrors = ref 0;;
